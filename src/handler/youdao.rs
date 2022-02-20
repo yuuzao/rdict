@@ -50,7 +50,8 @@ struct YoudaoResMeta {
     // "dicts": [
     // "meta",
     // "ec",
-    // "blng_sents_part"
+    // "blng_sents_part",
+    // "typo"
     // ]
     lang: String,
     input: String,
@@ -58,10 +59,22 @@ struct YoudaoResMeta {
 }
 
 #[derive(Deserialize, Debug)]
+struct TypoContent {
+    word: String,
+    trans: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct Typo {
+    typo: Vec<TypoContent>,
+}
+
+#[derive(Deserialize, Debug)]
 struct YoudaoRes {
     meta: YoudaoResMeta,
-    ec: YoudaoEc,
-    blng_sents_part: YoudaoExample,
+    ec: Option<YoudaoEc>,
+    typos: Option<Typo>,
+    blng_sents_part: Option<YoudaoExample>,
 }
 // --------------------
 
@@ -88,7 +101,7 @@ impl Youdao {
         Ok(VocabBody::from(res))
     }
 
-    /// The youdao API accepts any non-empty phrase, such as r11ust, interesting.
+    // The youdao API accepts any non-empty phrase, such as r11ust, interesting.
     pub fn query_pronounce(&self) -> Result<PhoneticUri, QueryError> {
         let mut url = Url::parse_with_params(
             "https://dict.youdao.com/dictvoice?",
@@ -108,30 +121,43 @@ impl Youdao {
 
 impl From<YoudaoRes> for VocabBody {
     fn from(ydr: YoudaoRes) -> VocabBody {
-        let mut explains = vec![];
-        let mut examples = vec![];
+        let mut vb = VocabBody::new(ydr.meta.input);
+        if ydr.meta.dicts.iter().any(|v| v == "typos") {
+            let typos = ydr.typos.unwrap().typo;
+            let mut z = vec![];
+            for v in typos.iter() {
+                z.push(super::Typo {
+                    guessing: v.word.clone(),
+                    meaning: v.trans.clone(),
+                })
+            }
+            vb.typo = Some(z);
+        } else {
+            let mut explains = vec![];
+            let mut examples = vec![];
 
-        for e in ydr.ec.word[0].trs.clone() {
-            explains.push(Explain {
-                content: Some(e.tr[0].l.i[0].clone()),
-            });
-        }
-        for e in ydr.blng_sents_part.sentence_pair {
-            examples.push(Example {
-                sentence_eng: e.sentence,
-                trans: e.sentence_translation,
-            });
-        }
+            let ec = ydr.ec.unwrap();
 
-        VocabBody {
-            phrase: Some(ydr.meta.input.clone()),
-            phonetic: Phonetic {
-                uk: ydr.ec.word[0].ukphone.clone(),
-                us: ydr.ec.word[0].usphone.clone(),
-            },
-            explains,
-            examples,
+            for e in ec.word[0].trs.clone() {
+                explains.push(Explain {
+                    content: Some(e.tr[0].l.i[0].clone()),
+                });
+            }
+            for e in ydr.blng_sents_part.unwrap().sentence_pair {
+                examples.push(Example {
+                    sentence_eng: e.sentence,
+                    trans: e.sentence_translation,
+                });
+            }
+
+            vb.phonetic = Some(Phonetic {
+                uk: ec.word[0].ukphone.clone(),
+                us: ec.word[0].usphone.clone(),
+            });
+            vb.explains = Some(explains);
+            vb.examples = Some(examples);
         }
+        vb
     }
 }
 
@@ -174,4 +200,9 @@ mod tests {
     //         format!("{:?}", yd.query_meaning().unwrap())
     //     )
     // }
+    #[test]
+    fn test_typo() {
+        let yd = Youdao::new("hellox");
+        yd.query_meaning();
+    }
 }

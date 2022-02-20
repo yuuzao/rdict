@@ -37,71 +37,133 @@ struct Example {
     sentence_eng: String,
     trans: String,
 }
+
+#[derive(Debug, Clone)]
+pub struct Typo {
+    pub guessing: String,
+    pub meaning: String,
+}
+
 #[derive(Debug)]
 pub struct VocabBody {
-    phrase: Option<String>,
-    phonetic: Phonetic,
-    explains: Vec<Explain>,
-    examples: Vec<Example>,
+    phrase: String,
+    phonetic: Option<Phonetic>,
+    explains: Option<Vec<Explain>>,
+    examples: Option<Vec<Example>>,
+    typo: Option<Vec<Typo>>,
+}
+
+impl VocabBody {
+    pub fn new(phrase: String) -> Self {
+        VocabBody {
+            phrase,
+            phonetic: None,
+            explains: None,
+            examples: None,
+            typo: None,
+        }
+    }
 }
 
 impl fmt::Display for VocabBody {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{ld}\n{zh:>5}{lb}{phonetic}{rb}",
-            ld = "音标".truecolor(255, 95, 175),
-            zh = "英".truecolor(0, 175, 175),
-            lb = "[".truecolor(188, 188, 188),
-            phonetic = self.phonetic.uk.clone().unwrap().truecolor(95, 175, 95),
-            rb = "]".truecolor(188, 188, 188),
-        );
-        writeln!(
-            f,
-            "{zh:>5}{lb}{phonetic}{rb}",
-            zh = "美".truecolor(0, 175, 175),
-            lb = "[".truecolor(188, 188, 188),
-            phonetic = self.phonetic.us.clone().unwrap().truecolor(95, 175, 95),
-            rb = "]".truecolor(188, 188, 188),
-        );
-        writeln!(f, "{t}", t = "释义".truecolor(255, 95, 175));
-        for e in self.explains.iter() {
-            if let Some(i) = e.content.clone().unwrap().split_once('.') {
+        writeln!(f, "");
+        if !self.typo.is_none() {
+            writeln!(
+                f,
+                "{:>4}{phrase} {msg}",
+                ' ',
+                phrase = self.phrase.clone().truecolor(30, 250, 110),
+                msg = "not found, do you mean:".truecolor(95, 175, 95)
+            );
+            for w in self.typo.clone().unwrap() {
                 writeln!(
                     f,
-                    "{p:>4}{part:>3}{dot}{zh}",
-                    p = " ",
-                    dot = ".".truecolor(188, 188, 188),
-                    part = i.0.truecolor(0, 175, 175),
-                    zh = i.1.truecolor(95, 175, 95),
+                    "{:>6}{} {word}",
+                    ' ',
+                    ">".truecolor(188, 188, 188),
+                    word = w.guessing.truecolor(30, 250, 110)
                 );
+                if let Some(i) = w.meaning.split_once('.') {
+                    writeln!(
+                        f,
+                        "{:>8}{}{dot} {m}",
+                        ' ',
+                        part = i.0.truecolor(0, 175, 175),
+                        dot = ".".truecolor(188, 188, 188),
+                        m = i.1.trim_start().truecolor(95, 175, 95)
+                    );
+                }
             }
-        }
-        writeln!(f, "{}", "例句".truecolor(255, 95, 175));
-        for (i, e) in self.examples.iter().enumerate() {
+        } else {
             write!(
                 f,
-                // align issue if index large than 10, but this will never happen
-                "{p:>4}{index}{dot}",
-                p = " ",
-                index = (i + 1).to_string().truecolor(0, 175, 175),
-                dot = ". ".truecolor(188, 188, 188),
+                "{ld}\n{zh:>5}{lb}{phonetic}{rb}",
+                ld = "音标".truecolor(255, 95, 175),
+                zh = "英".truecolor(0, 175, 175),
+                lb = "[".truecolor(188, 188, 188),
+                phonetic = self
+                    .phonetic
+                    .clone()
+                    .unwrap()
+                    .uk
+                    .unwrap()
+                    .truecolor(95, 175, 95),
+                rb = "]".truecolor(188, 188, 188),
             );
-
-            let phrase = self.phrase.clone().unwrap().to_lowercase();
-            let mut sp = String::new();
-            for v in e.sentence_eng.split(' ') {
-                let x = v.to_lowercase();
-                if x.starts_with(phrase.as_str()) || x.ends_with(phrase.as_str()) {
-                    sp.push_str(v.truecolor(30, 250, 110).to_string().as_str());
-                } else {
-                    sp.push_str(v.truecolor(95, 175, 95).to_string().as_str());
+            writeln!(
+                f,
+                "{zh:>5}{lb}{phonetic}{rb}",
+                zh = "美".truecolor(0, 175, 175),
+                lb = "[".truecolor(188, 188, 188),
+                phonetic = self
+                    .phonetic
+                    .clone()
+                    .unwrap()
+                    .us
+                    .unwrap()
+                    .truecolor(95, 175, 95),
+                rb = "]".truecolor(188, 188, 188),
+            );
+            writeln!(f, "{t}", t = "释义".truecolor(255, 95, 175));
+            for e in self.explains.clone().unwrap().iter() {
+                if let Some(i) = e.content.clone().unwrap().split_once('.') {
+                    writeln!(
+                        f,
+                        "{p:>4}{part:>3}{dot}{zh}",
+                        p = " ",
+                        dot = ".".truecolor(188, 188, 188),
+                        part = i.0.truecolor(0, 175, 175),
+                        zh = i.1.truecolor(95, 175, 95),
+                    );
                 }
-                sp.push(' ');
             }
-            writeln!(f, "{se}", se = sp);
+            writeln!(f, "{}", "例句".truecolor(255, 95, 175));
+            for (i, e) in self.examples.clone().unwrap().iter().enumerate() {
+                write!(
+                    f,
+                    // align issue if index large than 10, but this will never happen
+                    "{p:>4}{index}{dot}",
+                    p = " ",
+                    index = (i + 1).to_string().truecolor(0, 175, 175),
+                    dot = ". ".truecolor(188, 188, 188),
+                );
 
-            writeln!(f, "{p:>7}{st}", p = " ", st = e.trans.truecolor(0, 135, 0));
+                let phrase = self.phrase.clone().to_lowercase();
+                let mut sp = String::new();
+                for v in e.sentence_eng.split(' ') {
+                    let x = v.to_lowercase();
+                    if x.starts_with(phrase.as_str()) || x.ends_with(phrase.as_str()) {
+                        sp.push_str(v.truecolor(30, 250, 110).to_string().as_str());
+                    } else {
+                        sp.push_str(v.truecolor(95, 175, 95).to_string().as_str());
+                    }
+                    sp.push(' ');
+                }
+                writeln!(f, "{se}", se = sp);
+
+                writeln!(f, "{p:>7}{st}", p = " ", st = e.trans.truecolor(0, 135, 0));
+            }
         }
         Ok(())
     }
