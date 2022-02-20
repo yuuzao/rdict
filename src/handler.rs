@@ -1,11 +1,8 @@
 #![allow(dead_code, unused)]
 
 use colored::Colorize;
-use reqwest;
-use serde_json;
 use std::fmt;
 use std::io;
-use url;
 
 pub mod youdao;
 
@@ -59,21 +56,20 @@ impl fmt::Display for VocabBody {
             phonetic = self.phonetic.uk.clone().unwrap().truecolor(95, 175, 95),
             rb = "]".truecolor(188, 188, 188),
         );
-        write!(
+        writeln!(
             f,
-            "{zh:>5}{lb}{phonetic}{rb}\n",
+            "{zh:>5}{lb}{phonetic}{rb}",
             zh = "美".truecolor(0, 175, 175),
             lb = "[".truecolor(188, 188, 188),
             phonetic = self.phonetic.us.clone().unwrap().truecolor(95, 175, 95),
             rb = "]".truecolor(188, 188, 188),
         );
-        write!(f, "\n");
-        write!(f, "{t}\n", t = "释义".truecolor(255, 95, 175));
+        writeln!(f, "{t}", t = "释义".truecolor(255, 95, 175));
         for e in self.explains.iter() {
-            for i in e.content.clone().unwrap().split_once(".") {
-                write!(
+            if let Some(i) = e.content.clone().unwrap().split_once('.') {
+                writeln!(
                     f,
-                    "{p:>4}{part:>3}{dot}{zh}\n",
+                    "{p:>4}{part:>3}{dot}{zh}",
                     p = " ",
                     dot = ".".truecolor(188, 188, 188),
                     part = i.0.truecolor(0, 175, 175),
@@ -81,8 +77,7 @@ impl fmt::Display for VocabBody {
                 );
             }
         }
-        write!(f, "\n");
-        write!(f, "{}\n", "例句".truecolor(255, 95, 175));
+        writeln!(f, "{}", "例句".truecolor(255, 95, 175));
         for (i, e) in self.examples.iter().enumerate() {
             write!(
                 f,
@@ -95,23 +90,18 @@ impl fmt::Display for VocabBody {
 
             let phrase = self.phrase.clone().unwrap().to_lowercase();
             let mut sp = String::new();
-            for v in e.sentence_eng.split(" ") {
+            for v in e.sentence_eng.split(' ') {
                 let x = v.to_lowercase();
                 if x.starts_with(phrase.as_str()) || x.ends_with(phrase.as_str()) {
                     sp.push_str(v.truecolor(30, 250, 110).to_string().as_str());
                 } else {
                     sp.push_str(v.truecolor(95, 175, 95).to_string().as_str());
                 }
-                sp.push_str(" ");
+                sp.push(' ');
             }
-            write!(f, "{se}\n", se = sp);
+            writeln!(f, "{se}", se = sp);
 
-            write!(
-                f,
-                "{p:>7}{st}\n",
-                p = " ",
-                st = e.trans.truecolor(0, 135, 0)
-            );
+            writeln!(f, "{p:>7}{st}", p = " ", st = e.trans.truecolor(0, 135, 0));
         }
         Ok(())
     }

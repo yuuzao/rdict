@@ -144,7 +144,7 @@ impl Query for Youdao {
             ))),
             Some(t) => {
                 let ydr = Youdao::new(t).query_meaning()?;
-                Ok(VocabBody::from(ydr))
+                Ok(ydr)
             }
         }
     }
