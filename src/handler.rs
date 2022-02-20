@@ -17,8 +17,8 @@ pub enum Variety {
 
 #[derive(Debug, Default)]
 pub struct PhoneticUri {
-    uk: String,
-    us: String,
+    uk: Option<String>,
+    us: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -40,8 +40,8 @@ struct Example {
 
 #[derive(Debug, Clone)]
 pub struct Typo {
-    pub guessing: String,
-    pub meaning: String,
+    pub guessing: Option<String>,
+    pub meaning: Option<String>,
 }
 
 #[derive(Debug)]
@@ -68,82 +68,71 @@ impl VocabBody {
 impl fmt::Display for VocabBody {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "");
-        if !self.typo.is_none() {
-            writeln!(
-                f,
-                "{:>4}{phrase} {msg}",
-                ' ',
-                phrase = self.phrase.clone().truecolor(30, 250, 110),
-                msg = "not found, do you mean:".truecolor(95, 175, 95)
-            );
-            for w in self.typo.clone().unwrap() {
-                writeln!(
+        if let Some(p) = self.phonetic.clone() {
+            writeln!(f, "{t:>4}", t = "音标".truecolor(255, 95, 175));
+            if let Some(uk) = p.uk {
+                write!(
                     f,
-                    "{:>6}{} {word}",
-                    ' ',
-                    ">".truecolor(188, 188, 188),
-                    word = w.guessing.truecolor(30, 250, 110)
+                    "{zh:>7}{lb}{phonetic}{rb}",
+                    zh = "英".truecolor(0, 175, 175),
+                    lb = "[".truecolor(188, 188, 188),
+                    phonetic = self
+                        .phonetic
+                        .clone()
+                        .unwrap()
+                        .uk
+                        .unwrap()
+                        .truecolor(95, 175, 95),
+                    rb = "]".truecolor(188, 188, 188),
                 );
-                if let Some(i) = w.meaning.split_once('.') {
-                    writeln!(
-                        f,
-                        "{:>8}{}{dot} {m}",
-                        ' ',
-                        part = i.0.truecolor(0, 175, 175),
-                        dot = ".".truecolor(188, 188, 188),
-                        m = i.1.trim_start().truecolor(95, 175, 95)
-                    );
-                }
             }
-        } else {
-            write!(
-                f,
-                "{ld}\n{zh:>5}{lb}{phonetic}{rb}",
-                ld = "音标".truecolor(255, 95, 175),
-                zh = "英".truecolor(0, 175, 175),
-                lb = "[".truecolor(188, 188, 188),
-                phonetic = self
-                    .phonetic
-                    .clone()
-                    .unwrap()
-                    .uk
-                    .unwrap()
-                    .truecolor(95, 175, 95),
-                rb = "]".truecolor(188, 188, 188),
-            );
-            writeln!(
-                f,
-                "{zh:>5}{lb}{phonetic}{rb}",
-                zh = "美".truecolor(0, 175, 175),
-                lb = "[".truecolor(188, 188, 188),
-                phonetic = self
-                    .phonetic
-                    .clone()
-                    .unwrap()
-                    .us
-                    .unwrap()
-                    .truecolor(95, 175, 95),
-                rb = "]".truecolor(188, 188, 188),
-            );
-            writeln!(f, "{t}", t = "释义".truecolor(255, 95, 175));
+            if let Some(us) = p.us {
+                write!(
+                    f,
+                    "{zh:>4}{lb}{phonetic}{rb}",
+                    zh = "美".truecolor(0, 175, 175),
+                    lb = "[".truecolor(188, 188, 188),
+                    phonetic = self
+                        .phonetic
+                        .clone()
+                        .unwrap()
+                        .us
+                        .unwrap()
+                        .truecolor(95, 175, 95),
+                    rb = "]".truecolor(188, 188, 188),
+                );
+            }
+        }
+        writeln!(f, "");
+        if self.explains.is_some() {
+            writeln!(f, "{t:>4}", t = "释义".truecolor(255, 95, 175));
             for e in self.explains.clone().unwrap().iter() {
                 if let Some(i) = e.content.clone().unwrap().split_once('.') {
                     writeln!(
                         f,
-                        "{p:>4}{part:>3}{dot}{zh}",
-                        p = " ",
+                        "{p:>6}{part}{dot} {zh}",
+                        p = ' ',
                         dot = ".".truecolor(188, 188, 188),
-                        part = i.0.truecolor(0, 175, 175),
-                        zh = i.1.truecolor(95, 175, 95),
+                        part = i.0.trim().truecolor(0, 175, 175),
+                        zh = i.1.trim().truecolor(95, 175, 95),
+                    );
+                } else {
+                    writeln!(
+                        f,
+                        "{p:>6}{zh}",
+                        p = ' ',
+                        zh = e.content.clone().unwrap().trim().truecolor(95, 175, 95)
                     );
                 }
             }
-            writeln!(f, "{}", "例句".truecolor(255, 95, 175));
+        }
+        if self.examples.is_some() {
+            writeln!(f, "{:>4}", "例句".truecolor(255, 95, 175));
             for (i, e) in self.examples.clone().unwrap().iter().enumerate() {
                 write!(
                     f,
                     // align issue if index large than 10, but this will never happen
-                    "{p:>4}{index}{dot}",
+                    "{p:>6}{index}{dot}",
                     p = " ",
                     index = (i + 1).to_string().truecolor(0, 175, 175),
                     dot = ". ".truecolor(188, 188, 188),
@@ -162,9 +151,41 @@ impl fmt::Display for VocabBody {
                 }
                 writeln!(f, "{se}", se = sp);
 
-                writeln!(f, "{p:>7}{st}", p = " ", st = e.trans.truecolor(0, 135, 0));
+                writeln!(f, "{p:>11}{st}", p = " ", st = e.trans.truecolor(0, 135, 0));
+            }
+        } else if self.typo.is_some() {
+            writeln!(
+                f,
+                "{:>4}{phrase} {msg}",
+                ' ',
+                phrase = self.phrase.clone().truecolor(30, 250, 110),
+                msg = "may be a typo, are you looking for:".truecolor(95, 175, 95)
+            );
+            for w in self.typo.clone().unwrap() {
+                if let Some(g) = w.guessing {
+                    writeln!(
+                        f,
+                        "{:>6}{} {word}",
+                        ' ',
+                        ">".truecolor(188, 188, 188),
+                        word = g.truecolor(30, 250, 110)
+                    );
+                }
+                if let Some(m) = w.meaning {
+                    if let Some(i) = m.split_once('.') {
+                        writeln!(
+                            f,
+                            "{:>8}{}{dot} {m}",
+                            ' ',
+                            part = i.0.truecolor(0, 175, 175),
+                            dot = ".".truecolor(188, 188, 188),
+                            m = i.1.trim().truecolor(95, 175, 95)
+                        );
+                    }
+                }
             }
         }
+
         Ok(())
     }
 }

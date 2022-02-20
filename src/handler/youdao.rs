@@ -7,40 +7,54 @@ use serde::Deserialize;
 struct Trs {
     tr: Vec<TrsTr>,
 }
+
 #[derive(Deserialize, Clone, Debug)]
 struct TrsTr {
     l: TrsTrL,
 }
+
 #[derive(Deserialize, Clone, Debug)]
 struct TrsTrL {
     i: Vec<String>,
 }
+
 #[derive(Deserialize, Clone, Debug)]
-struct Data {
-    ukphone: Option<String>,
-    usphone: Option<String>,
-    // #[serde(flatten)]
-    trs: Vec<Trs>,
+struct Phrase {
+    l: PhraseL,
 }
-#[derive(Deserialize, Debug)]
+
+#[derive(Deserialize, Clone, Debug)]
+struct PhraseL {
+    i: String,
+}
+
+#[derive(Deserialize, Clone, Debug)]
+#[serde(rename_all = "kebab-case")]
+struct Data {
+    usphone: Option<String>,
+    ukphone: Option<String>,
+    trs: Option<Vec<Trs>>,
+    return_phrase: Option<Phrase>,
+}
+#[derive(Deserialize, Debug, Clone)]
 struct YoudaoEc {
     word: Vec<Data>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
 struct SentencePair {
     sentence: String,
     sentence_translation: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
 struct YoudaoExample {
     sentence_pair: Vec<SentencePair>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct YoudaoResMeta {
     // "input": "xyz",
     // "guessLanguage": "eng",
@@ -58,18 +72,18 @@ struct YoudaoResMeta {
     dicts: Vec<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct TypoContent {
-    word: String,
-    trans: String,
+    word: Option<String>,
+    trans: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct Typo {
     typo: Vec<TypoContent>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct YoudaoRes {
     meta: YoudaoResMeta,
     ec: Option<YoudaoEc>,
@@ -97,33 +111,34 @@ impl Youdao {
         )?;
 
         let res: YoudaoRes = reqwest::blocking::get(phrase_url)?.json()?;
-
+        let mut vb = VocabBody::new(self.phrase.clone());
         Ok(VocabBody::from(res))
     }
 
     // The youdao API accepts any non-empty phrase, such as r11ust, interesting.
     pub fn query_pronounce(&self) -> Result<PhoneticUri, QueryError> {
-        let mut url = Url::parse_with_params(
-            "https://dict.youdao.com/dictvoice?",
-            &[("audio", self.phrase.clone())],
-        )
-        .unwrap();
-        let mut uk_url = url.clone();
-        uk_url.set_query(Some("type=1"));
-        url.set_query(Some("type=2"));
-
-        Ok(PhoneticUri {
-            uk: uk_url.to_string(),
-            us: url.to_string(),
-        })
+        unimplemented!();
+        // let mut url = Url::parse_with_params(
+        //     "https://dict.youdao.com/dictvoice?",
+        //     &[("audio", self.phrase.clone())],
+        // )
+        // .unwrap();
+        // let mut uk_url = url.clone();
+        // uk_url.set_query(Some("type=1"));
+        // url.set_query(Some("type=2"));
+        //
+        // Ok(PhoneticUri {
+        //     uk: uk_url.unwrap().to_string(),
+        //     us: url.unwrap().to_string(),
+        // })
     }
 }
 
 impl From<YoudaoRes> for VocabBody {
     fn from(ydr: YoudaoRes) -> VocabBody {
         let mut vb = VocabBody::new(ydr.meta.input);
-        if ydr.meta.dicts.iter().any(|v| v == "typos") {
-            let typos = ydr.typos.unwrap().typo;
+        if let Some(t) = ydr.typos {
+            let typos = t.typo;
             let mut z = vec![];
             for v in typos.iter() {
                 z.push(super::Typo {
@@ -132,31 +147,53 @@ impl From<YoudaoRes> for VocabBody {
                 })
             }
             vb.typo = Some(z);
-        } else {
+        }
+        if let Some(ec) = ydr.ec {
             let mut explains = vec![];
             let mut examples = vec![];
 
-            let ec = ydr.ec.unwrap();
-
-            for e in ec.word[0].trs.clone() {
-                explains.push(Explain {
-                    content: Some(e.tr[0].l.i[0].clone()),
-                });
-            }
-            for e in ydr.blng_sents_part.unwrap().sentence_pair {
-                examples.push(Example {
-                    sentence_eng: e.sentence,
-                    trans: e.sentence_translation,
-                });
+            if let Some(p) = ec.word[0].return_phrase.clone() {
+                vb.phrase = p.l.i;
             }
 
-            vb.phonetic = Some(Phonetic {
-                uk: ec.word[0].ukphone.clone(),
-                us: ec.word[0].usphone.clone(),
-            });
+            if let Some(trs) = ec.word[0].trs.clone() {
+                for e in trs {
+                    explains.push(Explain {
+                        content: Some(e.tr[0].l.i[0].clone()),
+                    });
+                }
+            }
+
+            let valid_phonetic = |mut p: Option<String>| {
+                if let Some(x) = p.clone() {
+                    if x.is_empty() {
+                        p = None
+                    }
+                };
+                p
+            };
+            let ukp = ec.word[0].ukphone.clone();
+            let usp = ec.word[0].usphone.clone();
+            if !(valid_phonetic(ukp).is_none() && valid_phonetic(usp).is_none()) {
+                vb.phonetic = Some(Phonetic {
+                    uk: ec.word[0].ukphone.clone(),
+                    us: ec.word[0].usphone.clone(),
+                })
+            }
+
+            if let Some(part) = ydr.blng_sents_part.clone() {
+                for e in part.sentence_pair {
+                    examples.push(Example {
+                        sentence_eng: e.sentence,
+                        trans: e.sentence_translation,
+                    });
+                }
+            }
+
             vb.explains = Some(explains);
             vb.examples = Some(examples);
         }
+
         vb
     }
 }
@@ -202,7 +239,9 @@ mod tests {
     // }
     #[test]
     fn test_typo() {
-        let yd = Youdao::new("hellox");
-        yd.query_meaning();
+        //asu, asx, uu, qq
+        let yd = Youdao::new("qq");
+        let res = yd.query_meaning().unwrap();
+        println!("{:?}", res);
     }
 }
