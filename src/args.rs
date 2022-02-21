@@ -1,3 +1,4 @@
+use crate::meta::Meta;
 use crate::query::{Engines, QueryTarget};
 use clap::{ColorChoice, ErrorKind as CError, Parser};
 use colored::Colorize;
@@ -17,7 +18,8 @@ pub fn handle_args() -> Result<QueryTarget, ArgError> {
     use std::env;
     let mut input: Vec<_> = env::args_os().map(|v| v.into_string().unwrap()).collect();
     if input.len() == 1 {
-        show_usage();
+        // show_usage();
+        Meta::show_logo();
         std::process::exit(0);
     } else {
         let mut ph = input.get(1).unwrap();
@@ -32,7 +34,7 @@ pub fn handle_args() -> Result<QueryTarget, ArgError> {
         Err(e) => Err(wrap_error(ArgError::ClapError(e.kind()))),
         Ok(a) => {
             if a.phrase.is_empty() {
-                show_usage();
+                Meta::show_usage();
                 return Err(wrap_error(ArgError::EmptyValue));
             }
 
@@ -47,9 +49,6 @@ pub fn handle_args() -> Result<QueryTarget, ArgError> {
     }
 }
 
-fn show_usage() {
-    println!("this is rdict!")
-}
 fn wrap_error(e: ArgError) -> ArgError {
     println!("{} ", e);
     e
