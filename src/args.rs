@@ -18,7 +18,6 @@ pub fn handle_args() -> Result<QueryTarget, ArgError> {
     use std::env;
     let mut input: Vec<_> = env::args_os().map(|v| v.into_string().unwrap()).collect();
     if input.len() == 1 {
-        // show_usage();
         Meta::show_logo();
         std::process::exit(0);
     } else {
@@ -41,6 +40,7 @@ pub fn handle_args() -> Result<QueryTarget, ArgError> {
             Ok(QueryTarget {
                 engine: match a.dict.as_str() {
                     "youdao" => Engines::Youdao,
+                    // TODO: more engines
                     _ => Engines::Youdao,
                 },
                 phrase: a.phrase.join(" "),
