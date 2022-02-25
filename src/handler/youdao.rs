@@ -30,12 +30,6 @@ struct EC {
     word: Vec<Word>,
 }
 
-// root > ce
-// #[derive(Deserialize, Debug, Clone)]
-// struct CE {
-//     word: Vec<Word>,
-// }
-
 // root > ec > word[]
 #[derive(Deserialize, Clone, Debug)]
 #[serde(rename_all = "kebab-case")]
@@ -65,7 +59,7 @@ struct TrsTrL {
     i: Vec<serde_json::Value>,
 }
 impl TrsTrL {
-    fn extract(&self, lang: &String) -> String {
+    fn extract(&self, lang: &str) -> String {
         if lang == "zh" {
             let mut s = String::new();
             if let Some(x) = &self.pos {

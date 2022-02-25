@@ -13,4 +13,4 @@ anyhow = "1.0.53"
 url = "2.2.2"
 indicatif = "0.16.2"
 colored = "2.0.0"
-clap = {version = "3.1.0", features = ["derive"]}
+clap = {version = "3.1.2", features = ["derive"]}
