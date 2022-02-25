@@ -70,7 +70,7 @@ impl VocabBody {
 
 impl fmt::Display for VocabBody {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "");
+        writeln!(f);
         if self.is_empty() {
             writeln!(f, "{:>4}{}", " ", r#"¯\_(ツ)_/¯"#.truecolor(95, 175, 95));
             writeln!(f, "{:>4}{}", " ", "No result found".truecolor(95, 175, 95));
@@ -102,7 +102,7 @@ impl fmt::Display for VocabBody {
                 wp(us, "美".to_string())
             }
         }
-        writeln!(f, "");
+        writeln!(f);
         if let Some(exp) = &self.explains {
             writeln!(f, "{t:>4}", t = "释义".truecolor(255, 95, 175));
             for e in exp.iter() {

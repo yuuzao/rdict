@@ -6,44 +6,50 @@ use colored::Colorize;
 #[derive(Parser, Debug, Clone)]
 #[clap(author, version, about, long_about  = None)]
 pub struct Args {
+    /// What do you want to query?
     #[clap(short, long, multiple_values = true)]
     phrase: Vec<String>,
 
-    /// name
-    #[clap(short, long, default_value = "youdao")]
+    /// Where do you want to query from?
+    #[clap(
+        short,
+        long,
+        default_value = "youdao",
+        possible_values= ["youdao","bing"]
+    )]
     dict: String,
 }
 
 pub fn handle_args() -> Result<QueryTarget, ArgError> {
     use std::env;
     let mut input: Vec<_> = env::args_os().map(|v| v.into_string().unwrap()).collect();
+
     if input.len() == 1 {
         Meta::show_logo();
         std::process::exit(0);
     } else {
         let mut ph = input.get(1).unwrap();
+        // make sure the first string is not an argument, but do not validate it
         if !ph.starts_with('-') {
             input.insert(1, "-p".to_string())
         }
     }
 
-    let args = Args::try_parse_from(input);
+    let args = Args::parse_from(input);
 
-    match args {
-        Err(e) => Err(wrap_error(ArgError::ClapError(e.kind()))),
-        Ok(a) => {
-            if a.phrase.is_empty() {
-                Meta::show_usage();
-                return Err(wrap_error(ArgError::EmptyValue));
-            }
-
+    match args.phrase.is_empty() {
+        true => {
+            Meta::show_usage();
+            return Err(wrap_error(ArgError::EmptyValue));
+        }
+        false => {
             Ok(QueryTarget {
-                engine: match a.dict.as_str() {
+                engine: match args.dict.as_str() {
                     "youdao" => Engines::Youdao,
                     // TODO: more engines
                     _ => Engines::Youdao,
                 },
-                phrase: a.phrase.join(" "),
+                phrase: args.phrase.join(" "),
             })
         }
     }
