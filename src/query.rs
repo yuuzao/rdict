@@ -1,5 +1,4 @@
 use crate::handler::{youdao, VocabBody};
-use std::io;
 
 #[derive(Debug)]
 pub enum Engines {
@@ -12,11 +11,17 @@ pub struct QueryTarget {
 }
 
 impl QueryTarget {
-    pub fn query(&self) -> io::Result<VocabBody> {
+    pub fn query(&self) -> Option<VocabBody> {
         let ship = match self.engine {
             Engines::Youdao => youdao::Youdao::new(self.phrase.as_str()),
         };
-        let res = ship.query_meaning().unwrap();
-        Ok(res)
+        let res = ship.query_meaning();
+        match res {
+            Err(_) => {
+                // TODO: more elegant error handle.
+                None
+            }
+            Ok(vb) => Some(vb),
+        }
     }
 }
