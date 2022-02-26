@@ -20,7 +20,7 @@ pub struct Args {
     dict: String,
 }
 
-pub fn handle_args() -> Result<QueryTarget, ArgError> {
+pub fn parse_args() -> Result<QueryTarget, ArgError> {
     use std::env;
     let mut input: Vec<_> = env::args_os().map(|v| v.into_string().unwrap()).collect();
 
@@ -40,17 +40,16 @@ pub fn handle_args() -> Result<QueryTarget, ArgError> {
     match args.phrase.is_empty() {
         true => {
             Meta::show_usage();
-            return Err(wrap_error(ArgError::EmptyValue));
+            Err(wrap_error(ArgError::EmptyValue))
         }
         false => {
-            Ok(QueryTarget {
-                engine: match args.dict.as_str() {
-                    "youdao" => Engines::Youdao,
-                    // TODO: more engines
-                    _ => Engines::Youdao,
-                },
-                phrase: args.phrase.join(" "),
-            })
+            let mut target = QueryTarget::new(args.phrase.join(" "));
+            target.engine = match args.dict.as_str() {
+                "bing" => Engines::Bing,
+                _ => Engines::Youdao,
+            };
+
+            Ok(target)
         }
     }
 }
