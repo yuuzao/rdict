@@ -1,12 +1,11 @@
 use super::*;
-use anyhow;
-use reqwest::Url;
 use serde::Deserialize;
 use std::fmt::Debug;
+use ureq;
 
 // json root
 #[derive(Deserialize, Debug, Clone)]
-struct YoudaoRes {
+pub struct YoudaoRes {
     meta: Meta,
     #[serde(alias = "ce")]
     ec: Option<EC>, // ec: english-chinese, ce: chinese-english
@@ -124,7 +123,9 @@ struct TypoContent {
 
 // --------------------
 
-#[derive(Clone, Debug)]
+const PHRASE_API: &str = "http://dict.youdao.com/jsonapi";
+
+#[derive(Clone, Debug, Default)]
 pub struct Youdao {
     phrase: String,
 }
@@ -134,35 +135,6 @@ impl Youdao {
         Youdao {
             phrase: phrase.to_lowercase(),
         }
-    }
-
-    pub fn query_meaning(&self) -> Result<VocabBody, QueryError> {
-        let phrase_url = Url::parse_with_params(
-            "http://dict.youdao.com/jsonapi?",
-            &[("q", self.phrase.clone())],
-        )?;
-
-        let res: YoudaoRes = reqwest::blocking::get(phrase_url)?.json()?;
-        let mut vb = VocabBody::new(self.phrase.clone());
-        Ok(VocabBody::from(res))
-    }
-
-    // The youdao API accepts any non-empty phrase, such as r11ust, interesting.
-    pub fn query_pronounce(&self) -> Result<PhoneticUri, QueryError> {
-        unimplemented!();
-        // let mut url = Url::parse_with_params(
-        //     "https://dict.youdao.com/dictvoice?",
-        //     &[("audio", self.phrase.clone())],
-        // )
-        // .unwrap();
-        // let mut uk_url = url.clone();
-        // uk_url.set_query(Some("type=1"));
-        // url.set_query(Some("type=2"));
-        //
-        // Ok(PhoneticUri {
-        //     uk: uk_url.unwrap().to_string(),
-        //     us: url.unwrap().to_string(),
-        // })
     }
 }
 
@@ -240,15 +212,14 @@ impl From<YoudaoRes> for VocabBody {
 }
 
 impl Query for Youdao {
-    fn query_meaning(&self, text: Option<&str>) -> Result<VocabBody, QueryError> {
-        match text {
-            None => Err(QueryError::InputError(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "empty input",
-            ))),
-            Some(t) => {
-                let ydr = Youdao::new(t).query_meaning()?;
-                Ok(ydr)
+    fn query_meaning(&self, phrase: &str) -> Result<Vec<u8>, QueryError> {
+        use std::io::BufReader;
+        match ureq::get(PHRASE_API).query("q", &self.phrase).call() {
+            Err(e) => Err(QueryError::RequestError(Box::new(e))),
+            Ok(v) => {
+                let mut res = vec![];
+                v.into_reader().read_to_end(&mut res);
+                Ok(res)
             }
         }
     }
@@ -262,7 +233,8 @@ impl Query for Youdao {
             }
             Some(t) => Youdao::new(t),
         };
-        yd.query_pronounce()
+        unimplemented!();
+        // yd.query_pronounce()
     }
 }
 
@@ -278,11 +250,13 @@ mod tests {
     //         format!("{:?}", yd.query_meaning().unwrap())
     //     )
     // }
-    #[test]
-    fn test_typo() {
-        //asu, asx, uu, qq
-        let yd = Youdao::new("qq");
-        let res = yd.query_meaning().unwrap();
-        println!("{:?}", res);
-    }
+    // #[test]
+    // fn test_typo() {
+    //     unimplemented!();
+    //     //asu, asx, uu, qq
+    //     let yd = Youdao::new("qq");
+    //     let res = yd.query_meaning(Some("qq"), false).unwrap();
+    //
+    //     println!("{:?}", res);
+    // }
 }

@@ -2,7 +2,8 @@
 
 use colored::Colorize;
 use std::fmt;
-use std::io;
+use std::io::{self, Read};
+use std::prelude;
 
 pub mod youdao;
 
@@ -66,6 +67,8 @@ impl VocabBody {
             && self.examples.is_none()
             && self.typo.is_none()
     }
+
+    // pub fn as_bytes(&self) ->
 }
 
 impl fmt::Display for VocabBody {
@@ -191,23 +194,17 @@ impl fmt::Display for VocabBody {
 
 #[derive(Debug)]
 pub enum QueryError {
-    HttpError(reqwest::Error),
-    UrlError(url::ParseError),
+    RequestError(Box<ureq::Error>),
     SerdeError(serde_json::Error),
     InputError(io::Error),
 }
 
-impl From<reqwest::Error> for QueryError {
-    fn from(err: reqwest::Error) -> QueryError {
-        QueryError::HttpError(err)
+impl From<ureq::Error> for QueryError {
+    fn from(err: ureq::Error) -> QueryError {
+        QueryError::RequestError(Box::new(err))
     }
 }
 
-impl From<url::ParseError> for QueryError {
-    fn from(err: url::ParseError) -> QueryError {
-        QueryError::UrlError(err)
-    }
-}
 impl From<serde_json::Error> for QueryError {
     fn from(err: serde_json::Error) -> QueryError {
         QueryError::SerdeError(err)
@@ -220,6 +217,6 @@ impl From<io::Error> for QueryError {
 }
 
 pub trait Query {
-    fn query_meaning(&self, text: Option<&str>) -> Result<VocabBody, QueryError>;
+    fn query_meaning(&self, text: &str) -> Result<Vec<u8>, QueryError>;
     fn query_pronounce(&self, text: Option<&str>) -> Result<PhoneticUri, QueryError>;
 }
