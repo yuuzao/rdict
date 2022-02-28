@@ -1,6 +1,8 @@
 use crate::handler::{youdao, Query, QueryError, VocabBody};
+use crate::util;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::io;
+use std::io::Result;
+use std::ops::Deref;
 use std::sync::mpsc;
 use std::thread;
 use std::time;
@@ -33,7 +35,8 @@ impl QueryTarget {
             Engines::Bing => todo!(),
             _ => youdao::Youdao::new(self.phrase.as_str()),
         };
-        self.raw = if let Some(raw) = self.query_local_db() {
+        self.raw = if let Some(raw) = self.query_local_db()? {
+            println!("local");
             Some(raw)
         } else {
             let res = t.query_meaning(&self.phrase).unwrap();
@@ -80,13 +83,10 @@ impl QueryTarget {
         Ok(())
     }
 
-    pub fn try_save(&self) -> io::Result<()> {
-        // TODO: path configuration
-        let db: sled::Db = sled::open("history").unwrap();
-        if let Some(raw) = &self.raw {
-            let p = self.phrase.as_str();
-            db.insert(p, &*raw.clone()).unwrap();
-        }
+    pub fn save(&self) -> Result<()> {
+        let db = util::open_db()?;
+        db.insert(self.phrase.as_str(), self.raw.clone().unwrap())?;
+
         Ok(())
     }
 
@@ -105,14 +105,36 @@ impl QueryTarget {
         }
     }
 
-    fn query_local_db(&mut self) -> Option<Vec<u8>> {
-        let db: sled::Db = sled::open("history").unwrap();
-        use std::ops::Deref;
-        if let Some(v) = db.get(&self.phrase).unwrap() {
+    fn query_local_db(&mut self) -> Result<Option<Vec<u8>>> {
+        let db = util::open_db()?;
+        if let Some(v) = db.get(&self.phrase)? {
             let r: Vec<u8> = v.deref().to_vec();
-            Some(r)
+            return Ok(Some(r));
         } else {
-            None
+            return Ok(None);
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn test_save() {
+        let test_str = "upupdowndownleftleftrightrightBABA";
+        let mut target = QueryTarget::new(test_str.to_string());
+        let v = vec![12, 34];
+        target.raw = Some(v.clone());
+        target.save().unwrap();
+
+        let db = util::open_db().unwrap();
+        assert!(db.contains_key(test_str).unwrap());
+        let r = db.remove(test_str).unwrap().unwrap().as_ref().to_vec();
+        assert_eq!(v, r);
+        let r = db.remove(test_str).unwrap();
+        assert_eq!(None, r);
     }
 }

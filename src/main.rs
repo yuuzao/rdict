@@ -2,7 +2,6 @@
 mod args;
 mod handler;
 mod meta;
-mod progressbar;
 mod query;
 mod util;
 
@@ -11,6 +10,6 @@ fn main() {
     let mut target = parse_args().unwrap();
     if target.query_with_pb().is_ok() {
         target.display();
-        target.try_save().unwrap();
+        target.save().unwrap();
     }
 }
