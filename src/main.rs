@@ -7,10 +7,9 @@ mod query;
 mod util;
 
 use args::parse_args;
-use progressbar::query_with_pb;
 fn main() {
     let mut target = parse_args().unwrap();
-    if let Ok(_) = query_with_pb(&mut target) {
+    if target.query_with_pb().is_ok() {
         target.display();
         target.try_save().unwrap();
     }
