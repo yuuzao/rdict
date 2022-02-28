@@ -81,19 +81,13 @@ impl fmt::Display for VocabBody {
         }
         if let Some(p) = self.phonetic.clone() {
             writeln!(f, "{t:>4}", t = "音标".truecolor(255, 95, 175));
-            let mut wp = |p: String, ph: String| {
+            let mut wp = |us_uk: String, ph: String| {
                 write!(
                     f,
                     "{zh:>7}{lb}{phonetic}{rb}",
                     zh = ph.truecolor(0, 175, 175),
                     lb = "[".truecolor(188, 188, 188),
-                    phonetic = self
-                        .phonetic
-                        .clone()
-                        .unwrap()
-                        .uk
-                        .unwrap()
-                        .truecolor(95, 175, 95),
+                    phonetic = us_uk.truecolor(95, 175, 95),
                     rb = "]".truecolor(188, 188, 188),
                 );
             };
