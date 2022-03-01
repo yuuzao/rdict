@@ -1,10 +1,13 @@
 use crate::meta::Meta;
 use crate::query::{Engines, QueryTarget};
-use clap::{ColorChoice, ErrorKind as CError, Parser};
+use clap::{ArgGroup, ColorChoice, CommandFactory, ErrorKind as CError, Parser};
 use colored::Colorize;
+use std::env;
 
 #[derive(Parser, Debug, Clone)]
 #[clap(author, version, about, long_about  = None)]
+#[clap(group(ArgGroup::new("query").args(&["phrase", "dict"]).multiple(true).requires("phrase")))]
+#[clap(group(ArgGroup::new("function").args(&["list"]).conflicts_with_all(&["query"])))]
 pub struct Args {
     /// What do you want to query?
     #[clap(short, long, multiple_values = true)]
@@ -18,45 +21,45 @@ pub struct Args {
         possible_values= ["youdao","bing"]
     )]
     dict: String,
+
+    /// list query history
+    #[clap(short, long, default_missing_value = "5")]
+    list: Option<usize>,
 }
 
-pub fn parse_args() -> Result<QueryTarget, ArgError> {
-    use std::env;
+pub enum CliAction {
+    Query(String, String), //phrases and engine
+    ListHistory(usize),
+    Other,
+}
+
+pub fn parse_args() -> Result<CliAction, ArgError> {
+    let input = handle_input();
+    let args = Args::parse_from(input);
+
+    if !args.phrase.is_empty() {
+        return Ok(CliAction::Query(args.phrase.join(" "), args.dict));
+    }
+
+    if let Some(x) = args.list {
+        return Ok(CliAction::ListHistory(x));
+    }
+
+    Ok(CliAction::Other)
+}
+
+fn handle_input() -> Vec<String> {
     let mut input: Vec<_> = env::args_os().map(|v| v.into_string().unwrap()).collect();
 
     if input.len() == 1 {
-        Meta::show_logo();
-        std::process::exit(0);
-    } else {
-        let mut ph = input.get(1).unwrap();
-        // make sure the first string is not an argument, but do not validate it
-        if !ph.starts_with('-') {
-            input.insert(1, "-p".to_string())
-        }
+        return vec![];
     }
 
-    let args = Args::parse_from(input);
-
-    match args.phrase.is_empty() {
-        true => {
-            Meta::show_usage();
-            Err(wrap_error(ArgError::EmptyValue))
-        }
-        false => {
-            let mut target = QueryTarget::new(args.phrase.join(" "));
-            target.engine = match args.dict.as_str() {
-                "bing" => Engines::Bing,
-                _ => Engines::Youdao,
-            };
-
-            Ok(target)
-        }
+    let mut phrase = input.get(1).unwrap();
+    if !phrase.starts_with('-') {
+        input.insert(1, "-p".to_string());
     }
-}
-
-fn wrap_error(e: ArgError) -> ArgError {
-    println!("{} ", e);
-    e
+    input
 }
 
 #[derive(Debug)]

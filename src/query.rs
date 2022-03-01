@@ -1,16 +1,22 @@
 use crate::handler::{youdao, Query, QueryError, VocabBody};
 use crate::util;
+use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
-use std::io::Result;
-use std::ops::Deref;
-use std::sync::mpsc;
-use std::thread;
-use std::time;
+use std::{io::Result, ops::Deref, sync::mpsc, thread, time};
 
 #[derive(Debug)]
 pub enum Engines {
     Youdao,
     Bing,
+}
+
+impl From<String> for Engines {
+    fn from(eng: String) -> Self {
+        match eng.as_str() {
+            "bing" => Engines::Bing,
+            _ => Engines::Youdao,
+        }
+    }
 }
 
 pub struct QueryTarget {
@@ -36,7 +42,6 @@ impl QueryTarget {
             _ => youdao::Youdao::new(self.phrase.as_str()),
         };
         self.raw = if let Some(raw) = self.query_local_db()? {
-            println!("local");
             Some(raw)
         } else {
             let res = t.query_meaning(&self.phrase).unwrap();
@@ -59,7 +64,7 @@ impl QueryTarget {
                     .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"),
             );
             bar.set_prefix(format!("{:>4}", " "));
-            bar.set_message(format!("searching..."));
+            bar.set_message("searching...".to_string());
             for _ in 0..100 {
                 bar.inc(1);
                 thread::sleep(time::Duration::from_millis(2));
@@ -109,11 +114,54 @@ impl QueryTarget {
         let db = util::open_db()?;
         if let Some(v) = db.get(&self.phrase)? {
             let r: Vec<u8> = v.deref().to_vec();
-            return Ok(Some(r));
+            Ok(Some(r))
         } else {
-            return Ok(None);
+            Ok(None)
         }
     }
+}
+
+pub struct History(Vec<String>);
+
+use std::fmt;
+impl fmt::Display for History {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f)?;
+        for (k, v) in self.0.iter().enumerate() {
+            writeln!(
+                f,
+                "{space:>4}{index}. {value}",
+                space = ' ',
+                index = k.to_string().truecolor(0, 175, 175),
+                value = v.truecolor(30, 250, 110)
+            )?;
+        }
+        Ok(())
+    }
+}
+
+impl From<Vec<String>> for History {
+    fn from(s: Vec<String>) -> Self {
+        History(s)
+    }
+}
+
+pub fn show_history(length: usize) -> Vec<String> {
+    let db: sled::Db = util::open_db().unwrap();
+
+    let mut ivecs: Vec<sled::IVec> = vec![];
+    for (i, key) in db.iter().keys().enumerate() {
+        if i > length {
+            break;
+        }
+        ivecs.push(key.unwrap())
+    }
+
+    let res: Vec<String> = ivecs
+        .into_iter()
+        .filter_map(|v| String::from_utf8(v.as_ref().to_vec()).ok())
+        .collect();
+    res
 }
 
 #[cfg(test)]
@@ -123,17 +171,21 @@ mod test {
 
     #[test]
     #[serial]
-    fn test_save() {
+    fn test_db() {
         let test_str = "upupdowndownleftleftrightrightBABA";
         let mut target = QueryTarget::new(test_str.to_string());
-        let v = vec![12, 34];
-        target.raw = Some(v.clone());
+        let value = vec![12, 34];
+
+        target.raw = Some(value.clone());
         target.save().unwrap();
 
         let db = util::open_db().unwrap();
-        assert!(db.contains_key(test_str).unwrap());
+
+        assert!(show_history(usize::MAX).contains(&test_str.to_string()));
+
         let r = db.remove(test_str).unwrap().unwrap().as_ref().to_vec();
-        assert_eq!(v, r);
+        assert_eq!(value, r);
+
         let r = db.remove(test_str).unwrap();
         assert_eq!(None, r);
     }

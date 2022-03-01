@@ -1,9 +1,8 @@
-#![allow(dead_code, unused)]
+#![allow(unused)]
 
 use colored::Colorize;
 use std::fmt;
 use std::io::{self, Read};
-use std::prelude;
 
 pub mod youdao;
 
@@ -67,8 +66,6 @@ impl VocabBody {
             && self.examples.is_none()
             && self.typo.is_none()
     }
-
-    // pub fn as_bytes(&self) ->
 }
 
 impl fmt::Display for VocabBody {

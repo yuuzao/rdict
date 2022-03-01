@@ -1,16 +1,12 @@
 use colored::Colorize;
-use dirs;
-use sled;
-use std::env;
-use std::fs;
-use std::io;
-use std::path::PathBuf;
+use std::{env, fs, io, path::PathBuf};
 
+//TODO: refactory
 pub fn colorize(s: &str, rgb: (u8, u8, u8)) -> String {
     s.truecolor(rgb.0, rgb.1, rgb.2).to_string()
 }
 
-const DB_NAME: &'static str = "rdict";
+const DB_NAME: &str = "rdict";
 
 pub fn open_db() -> io::Result<sled::Db> {
     let path = match set_path() {
@@ -33,7 +29,7 @@ pub fn open_db() -> io::Result<sled::Db> {
 
     match sled::open(path) {
         Ok(db) => Ok(db),
-        Err(e) => return Err(e.into()),
+        Err(e) => Err(e.into()),
     }
 }
 

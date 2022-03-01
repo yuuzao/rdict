@@ -5,11 +5,24 @@ mod meta;
 mod query;
 mod util;
 
-use args::parse_args;
+use args::{parse_args, CliAction};
+use meta::Meta;
+use query::{Engines, History, QueryTarget};
+
 fn main() {
-    let mut target = parse_args().unwrap();
-    if target.query_with_pb().is_ok() {
-        target.display();
-        target.save().unwrap();
+    match parse_args().unwrap() {
+        CliAction::Query(phrases, engine) => {
+            let mut target = QueryTarget::new(phrases);
+            target.engine = Engines::from(engine);
+
+            target.query_with_pb().unwrap();
+            target.display();
+            target.save().unwrap();
+        }
+        CliAction::ListHistory(s) => {
+            let history: History = query::show_history(s).into();
+            println!("{}", history);
+        }
+        CliAction::Other => Meta::show_logo(),
     }
 }

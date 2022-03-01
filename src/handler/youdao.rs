@@ -234,29 +234,5 @@ impl Query for Youdao {
             Some(t) => Youdao::new(t),
         };
         unimplemented!();
-        // yd.query_pronounce()
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // #[test]
-    // fn test_query_meaning() {
-    //     let yd = Youdao::new("rust");
-    //     assert_eq!(
-    //         r#"VocabBody { phrase: Some("rust"), engine: Youdao, phonetic: Phonetic { us: Some("rʌst"), uk: Some("rʌst") }, explains: [Explain { content: Some("n. 锈，铁锈；（植物的）锈病，锈菌；铁锈色，赭色") }, Explain { content: Some("v. （使）生锈；成铁锈色；（因疏忽或不用而）衰退，变迟钝；（因长时间不用或有害使用而）损害，腐蚀") }, Explain { content: Some("【名】 （Rust）（英）拉斯特，（德、捷、瑞典）鲁斯特，（法）吕斯特（人名）") }], examples: [Example { sentence_eng: "<b>Rust</b> had eaten into the metal.", trans: "这金属已经锈坏。" }, Example { sentence_eng: "Brass doesn't <b>rust</b>.", trans: "黄铜不生锈。" }, Example { sentence_eng: "We provide a 5-year guarantee against <b>rust</b>.", trans: "我们保证5年不生锈。" }] }"#,
-    //         format!("{:?}", yd.query_meaning().unwrap())
-    //     )
-    // }
-    // #[test]
-    // fn test_typo() {
-    //     unimplemented!();
-    //     //asu, asx, uu, qq
-    //     let yd = Youdao::new("qq");
-    //     let res = yd.query_meaning(Some("qq"), false).unwrap();
-    //
-    //     println!("{:?}", res);
-    // }
 }
