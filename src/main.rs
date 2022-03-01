@@ -2,16 +2,27 @@
 mod args;
 mod handler;
 mod meta;
-mod progressbar;
 mod query;
 mod util;
 
-use args::parse_args;
-use progressbar::query_with_pb;
+use args::{parse_args, CliAction};
+use meta::Meta;
+use query::{Engines, History, QueryTarget};
+
 fn main() {
-    let mut target = parse_args().unwrap();
-    if let Ok(_) = query_with_pb(&mut target) {
-        target.display();
-        target.try_save().unwrap();
+    match parse_args().unwrap() {
+        CliAction::Query(phrases, engine) => {
+            let mut target = QueryTarget::new(phrases);
+            target.engine = Engines::from(engine);
+
+            target.query_with_pb().unwrap();
+            target.display();
+            target.save().unwrap();
+        }
+        CliAction::ListHistory(s) => {
+            let history: History = query::show_history(s).into();
+            println!("{}", history);
+        }
+        CliAction::Other => Meta::show_logo(),
     }
 }

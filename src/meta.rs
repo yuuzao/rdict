@@ -1,5 +1,6 @@
 use crate::util::colorize;
-pub struct Meta {}
+
+pub struct Meta;
 
 impl Meta {
     pub fn show_logo() {
@@ -19,8 +20,5 @@ impl Meta {
                 (92, 184, 92)
             )
         )
-    }
-    pub fn show_usage() {
-        println!("this is rdict!")
     }
 }
