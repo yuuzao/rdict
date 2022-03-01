@@ -48,13 +48,6 @@ mod test {
     use serial_test::serial;
 
     #[test]
-    #[serial]
-    fn test_db() {
-        let db = open_db();
-        assert!(db.is_ok());
-    }
-
-    #[test]
     fn test_set_path() {
         let p = set_path();
         assert!(p.is_ok());

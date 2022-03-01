@@ -1,4 +1,3 @@
-use crate::meta::Meta;
 use crate::query::{Engines, QueryTarget};
 use clap::{ArgGroup, ColorChoice, CommandFactory, ErrorKind as CError, Parser};
 use colored::Colorize;

@@ -1,4 +1,5 @@
 use crate::handler::{youdao, Query, QueryError, VocabBody};
+use crate::meta;
 use crate::util;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -38,7 +39,10 @@ impl QueryTarget {
 
     pub fn query(&mut self) -> std::result::Result<(), QueryError> {
         let t = match self.engine {
-            Engines::Bing => todo!(),
+            Engines::Bing => {
+                meta::wip();
+                std::process::exit(0)
+            }
             _ => youdao::Youdao::new(self.phrase.as_str()),
         };
         self.raw = if let Some(raw) = self.query_local_db()? {

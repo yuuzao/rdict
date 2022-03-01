@@ -6,7 +6,6 @@ mod query;
 mod util;
 
 use args::{parse_args, CliAction};
-use meta::Meta;
 use query::{Engines, History, QueryTarget};
 
 fn main() {
@@ -23,6 +22,6 @@ fn main() {
             let history: History = query::show_history(s).into();
             println!("{}", history);
         }
-        CliAction::Other => Meta::show_logo(),
+        CliAction::Other => meta::show_logo(),
     }
 }
