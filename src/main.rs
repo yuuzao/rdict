@@ -3,6 +3,7 @@ mod args;
 mod handler;
 mod meta;
 mod query;
+mod result;
 mod util;
 
 use args::{parse_args, CliAction};
