@@ -23,7 +23,7 @@ pub fn show_logo() {
 }
 pub fn wip() {
     show_logo();
-    println!("{:>4}{}", ' ', coloring(DictMsg::Wip, ColorfulRole::Other));
+    println!("{:>4}{}", ' ', coloring(DictMsg::Wip, ColorfulRole::Wip));
 }
 
 pub enum DictMsg {

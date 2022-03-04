@@ -11,6 +11,7 @@ pub enum ColorfulRole {
     Content,
     Emphasis,
     Logo,
+    Wip,
     Other,
 }
 
@@ -44,6 +45,7 @@ impl From<ColorfulRole> for (u8, u8, u8) {
             ColorfulRole::Emphasis => (30, 250, 110),
             ColorfulRole::Logo => (0, 221, 192),
             ColorfulRole::Other => (0, 134, 1),
+            ColorfulRole::Wip => (214, 158, 19),
         }
     }
 }
