@@ -1,71 +1,54 @@
 use colored::Colorize;
-use std::{env, fs, io, path::PathBuf};
+use std::{env, path::PathBuf};
 
-//TODO: refactory
-pub fn colorize(s: &str, rgb: (u8, u8, u8)) -> String {
-    s.truecolor(rgb.0, rgb.1, rgb.2).to_string()
-}
+use crate::result::Result;
 
 const DB_NAME: &str = "rdict";
+pub enum ColorfulRole {
+    Title,
+    Index,
+    Dot,
+    Content,
+    Emphasis,
+    Logo,
+    Other,
+}
 
-pub fn open_db() -> io::Result<sled::Db> {
+pub fn open_db() -> Result<sled::Db> {
     let path = match set_path() {
         Err(e) => return Err(e),
         Ok(p) => p,
     };
 
-    match path.exists() {
-        false => {
-            if let Err(e) = fs::create_dir(&path) {
-                return Err(e);
-            }
-        }
-        true => {
-            if !path.is_dir() {
-                return Err(io::Error::new(io::ErrorKind::Other, "not a directory"));
-            }
-        }
-    }
+    return sled::open(path).map_err(Into::into);
 
-    match sled::open(path) {
-        Ok(db) => Ok(db),
-        Err(e) => Err(e.into()),
+    fn set_path() -> Result<PathBuf> {
+        let mut p = match dirs::data_dir() {
+            Some(v) => v,
+            None => env::current_dir()?,
+        };
+        p.push(DB_NAME);
+        Ok(p)
     }
 }
 
-fn set_path() -> io::Result<PathBuf> {
-    let mut p = match dirs::data_dir() {
-        Some(v) => v,
-        None => env::current_dir()?,
-    };
-    p.push(DB_NAME);
-    Ok(p)
-}
+// let's RGB
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    use serial_test::serial;
-
-    #[test]
-    #[serial]
-    fn test_db() {
-        let db = open_db();
-        assert!(db.is_ok());
-    }
-
-    #[test]
-    fn test_set_path() {
-        let p = set_path();
-        assert!(p.is_ok());
-        let p = p.unwrap();
-
-        if cfg!(unix) {
-            assert!(p.ends_with(".local/share/rdict"))
-        } else if cfg!(windows) {
-            assert!(p.ends_with(r#"\AppData\Local\rdict"#))
-        } else if cfg!(macos) {
-            assert!(p.ends_with("Library/Caches/rdict"))
+impl From<ColorfulRole> for (u8, u8, u8) {
+    fn from(role: ColorfulRole) -> Self {
+        match role {
+            ColorfulRole::Title => (255, 95, 175),
+            ColorfulRole::Index => (2, 169, 170),
+            ColorfulRole::Dot => (188, 188, 188),
+            ColorfulRole::Content => (95, 175, 95),
+            ColorfulRole::Emphasis => (30, 250, 110),
+            ColorfulRole::Logo => (0, 221, 192),
+            ColorfulRole::Other => (0, 134, 1),
         }
     }
+}
+
+pub fn coloring<'a, T: Into<&'a str>>(s: T, role: ColorfulRole) -> String {
+    let rgb: (u8, u8, u8) = role.into();
+    s.into().truecolor(rgb.0, rgb.1, rgb.2).to_string()
 }

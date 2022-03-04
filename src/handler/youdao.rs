@@ -14,6 +14,7 @@ pub struct YoudaoRes {
 }
 
 // root > meta
+#[allow(dead_code)]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct Meta {
@@ -65,12 +66,12 @@ impl TrsTrL {
                 s.push_str(x.as_str())
             }
 
-            for t in &self.i {
-                if let Some(v) = t.as_str() {
+            for value in &self.i {
+                if let Some(v) = value.as_str() {
                     if !v.is_empty() {
                         s.push_str(v)
                     }
-                } else if let Some(v) = t.as_object() {
+                } else if let Some(v) = value.as_object() {
                     s.push_str(v["#text"].as_str().unwrap());
                 }
             }
@@ -93,7 +94,7 @@ struct PhraseL {
     i: String,
 }
 
-// sentence_eng ----------------------------
+// root > sentence_eng
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "kebab-case")]
 struct SentencePair {
@@ -125,6 +126,7 @@ struct TypoContent {
 
 const PHRASE_API: &str = "http://dict.youdao.com/jsonapi";
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct Youdao {
     phrase: String,
@@ -140,13 +142,12 @@ impl Youdao {
 
 impl From<YoudaoRes> for VocabBody {
     fn from(ydr: YoudaoRes) -> VocabBody {
-        // the looked up phrase may be converted into mixed case by the API.
+        // Responsed phrase may contain mixed cases. eg: "british" -> "British"
         let mut vb = VocabBody::new(ydr.meta.input);
 
         if let Some(t) = ydr.typos {
-            let typos = t.typo;
-            let mut z = vec![];
-            for v in typos.iter() {
+            let mut z = Vec::new();
+            for v in t.typo.iter() {
                 z.push(super::Typo {
                     guessing: v.word.clone(),
                     meaning: v.trans.clone(),
@@ -212,27 +213,18 @@ impl From<YoudaoRes> for VocabBody {
 }
 
 impl Query for Youdao {
-    fn query_meaning(&self, phrase: &str) -> Result<Vec<u8>, QueryError> {
-        use std::io::BufReader;
-        match ureq::get(PHRASE_API).query("q", &self.phrase).call() {
-            Err(e) => Err(QueryError::RequestError(Box::new(e))),
+    fn query_meaning(&self, text: &str) -> Result<Vec<u8>> {
+        match ureq::get(PHRASE_API).query("q", text).call() {
+            Err(e) => Err(e.into()),
             Ok(v) => {
                 let mut res = vec![];
-                v.into_reader().read_to_end(&mut res);
+                v.into_reader().read_to_end(&mut res)?;
                 Ok(res)
             }
         }
     }
-    fn query_pronounce(&self, text: Option<&str>) -> Result<PhoneticUri, QueryError> {
-        let yd = match text {
-            None => {
-                return Err(QueryError::InputError(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "empty input",
-                )))
-            }
-            Some(t) => Youdao::new(t),
-        };
-        unimplemented!();
-    }
+    // fn query_pronounce(&self, text: Option<&str>) -> Result<PhoneticUri> {
+    //     println!("{:?}", text);
+    //     todo!();
+    // }
 }

@@ -1,8 +1,10 @@
-use crate::meta::Meta;
-use crate::query::{Engines, QueryTarget};
+use std::{env, fmt};
+
 use clap::{ArgGroup, ColorChoice, CommandFactory, ErrorKind as CError, Parser};
 use colored::Colorize;
-use std::env;
+
+use crate::query::{Engines, QueryTarget};
+use crate::result::Result;
 
 #[derive(Parser, Debug, Clone)]
 #[clap(author, version, about, long_about  = None)]
@@ -33,52 +35,31 @@ pub enum CliAction {
     Other,
 }
 
-pub fn parse_args() -> Result<CliAction, ArgError> {
+pub fn parse_args() -> Result<CliAction> {
     let input = handle_input();
     let args = Args::parse_from(input);
 
     if !args.phrase.is_empty() {
         return Ok(CliAction::Query(args.phrase.join(" "), args.dict));
+    } else if let Some(list) = args.list {
+        return Ok(CliAction::ListHistory(list));
+    } else {
+        return Ok(CliAction::Other);
     }
 
-    if let Some(x) = args.list {
-        return Ok(CliAction::ListHistory(x));
-    }
+    fn handle_input() -> Vec<String> {
+        let mut input: Vec<_> = env::args_os().map(|v| v.into_string().unwrap()).collect();
 
-    Ok(CliAction::Other)
-}
+        assert_ne!(input.len(), 0);
 
-fn handle_input() -> Vec<String> {
-    let mut input: Vec<_> = env::args_os().map(|v| v.into_string().unwrap()).collect();
-
-    if input.len() == 1 {
-        return vec![];
-    }
-
-    let mut phrase = input.get(1).unwrap();
-    if !phrase.starts_with('-') {
-        input.insert(1, "-p".to_string());
-    }
-    input
-}
-
-#[derive(Debug)]
-pub enum ArgError {
-    ClapError(CError),
-    EmptyValue,
-}
-impl From<CError> for ArgError {
-    fn from(err: CError) -> ArgError {
-        ArgError::ClapError(err)
-    }
-}
-
-impl std::fmt::Display for ArgError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ClapError(x) => println!("{}", x.to_string().red()),
-            Self::EmptyValue => println!("{}", "You have to input something!".red()),
+        if input.len() == 1 {
+            return Vec::new();
         }
-        Ok(())
+
+        let mut phrase = input.get(1).unwrap();
+        if !phrase.starts_with('-') {
+            input.insert(1, "-p".to_string());
+        }
+        input
     }
 }
