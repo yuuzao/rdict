@@ -1,4 +1,4 @@
-use crate::util::{coloring, ColorfulRole};
+use crate::util::{ColorfulRole as Role, Style};
 
 const VERSION: &str = "Rdict v0.0.1";
 const LOGO: &str = r#"
@@ -8,22 +8,22 @@ const LOGO: &str = r#"
     ⠛  ⠑ ⠙⠒⠚⠓ ⠛ ⠙⠛⠋⠁ ⠘⠋ "#;
 
 pub fn show_logo() {
-    println!("{}", coloring(LOGO, ColorfulRole::Logo));
+    println!("{}", LOGO.coloring(Role::Logo));
 
     println!(
-        "{:>4}{}",
-        ' ',
-        coloring(DictMsg::Version, ColorfulRole::Content)
+        "{}{}",
+        ' '.align_right(4),
+        DictMsg::Version.to_string().coloring(Role::Content)
     );
     println!(
-        "{:>4}{}",
-        ' ',
-        coloring(DictMsg::Intro, ColorfulRole::Content)
-    )
+        "{}{}",
+        ' '.align_right(4),
+        DictMsg::Intro.coloring(Role::Content)
+    );
 }
 pub fn wip() {
     show_logo();
-    println!("{:>4}{}", ' ', coloring(DictMsg::Wip, ColorfulRole::Other));
+    println!("{}{}", ' '.align_right(4), DictMsg::Wip.coloring(Role::Wip))
 }
 
 pub enum DictMsg {
@@ -34,8 +34,15 @@ pub enum DictMsg {
     Intro,
 }
 
-impl From<DictMsg> for &str {
-    fn from(msg: DictMsg) -> &'static str {
+impl ToString for DictMsg {
+    fn to_string(&self) -> String {
+        let s: &str = self.into();
+        s.to_owned()
+    }
+}
+
+impl From<&DictMsg> for &str {
+    fn from(msg: &DictMsg) -> &'static str {
         use DictMsg::*;
         match msg {
             NotFound => "No result found",

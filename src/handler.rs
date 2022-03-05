@@ -4,7 +4,7 @@ use std::{fmt, io::Read};
 
 use crate::meta::DictMsg;
 use crate::result::Result;
-use crate::util::{coloring, ColorfulRole as Role};
+use crate::util::{ColorfulRole as Role, Style};
 
 #[derive(Debug)]
 pub struct VocabBody {
@@ -73,33 +73,38 @@ impl VocabBody {
 impl fmt::Display for VocabBody {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_empty() {
-            writeln!(f, "{:>4}{}", " ", coloring(DictMsg::Shrug, Role::Content))?;
             writeln!(
                 f,
-                "{:>4}{}",
-                " ",
-                coloring(DictMsg::NotFound, Role::Content)
+                "{}{}",
+                ' '.align_right(4),
+                DictMsg::Shrug.coloring(Role::Content)
+            )?;
+            writeln!(
+                f,
+                "{}{}",
+                ' '.align_right(4),
+                DictMsg::NotFound.coloring(Role::Content)
             )?;
             return Ok(());
         }
 
-        let space = " ";
-        let title = |title: &str| coloring(title, Role::Title);
-        let index = |index: &str| coloring(index, Role::Index);
-        let symbol = |p: &str| coloring(p, Role::Dot);
-        let dot = || coloring(". ", Role::Dot);
-        let content = |c: &str| coloring(c, Role::Content);
-        let emphasis = |word: &str| coloring(word, Role::Emphasis);
+        let space = |n| ' '.align_right(n);
+        let title = |title: &str| title.coloring(Role::Title);
+        let index = |index: &str| index.coloring(Role::Index);
+        let symbol = |p: &str| p.coloring(Role::Dot);
+        let dot = || ". ".coloring(Role::Dot);
+        let content = |c: &str| c.coloring(Role::Content);
+        let emphasis = |word: &str| word.coloring(Role::Emphasis);
 
         // 音标
         if let Some(p) = self.phonetic.clone() {
-            writeln!(f, "{s}{t}", s = space.repeat(4), t = title("音标"))?;
-            write!(f, "{s}", s = space.repeat(4))?;
+            writeln!(f, "{s}{t}", s = space(4), t = title("音标"))?;
+            write!(f, "{s}", s = space(4))?;
             let mut wp = |us_uk: &str, ph: &str| {
                 write!(
                     f,
                     "{s}{zh}{lb}{phonetic}{rb}",
-                    s = space.repeat(4),
+                    s = space(4),
                     zh = index(ph),
                     lb = symbol("["),
                     phonetic = content(us_uk),
@@ -120,22 +125,22 @@ impl fmt::Display for VocabBody {
 
         // 释义
         if let Some(exp) = &self.explains {
-            writeln!(f, "{s}{t}", s = space.repeat(4), t = title("释义"))?;
+            writeln!(f, "{s}{t}", s = space(4), t = title("释义"))?;
             for e in exp.iter() {
                 if let Some(i) = e.content.clone().unwrap().split_once('.') {
                     writeln!(
                         f,
                         "{s}{part}{dot}{zh}",
-                        s = space.repeat(8),
+                        s = space(8),
                         part = index(i.0.trim()),
                         dot = dot(),
-                        zh = coloring(i.1.trim(), Role::Content),
+                        zh = (i.1.trim().coloring(Role::Content)),
                     )?;
                 } else {
                     writeln!(
                         f,
                         "{s}{dot}{zh}",
-                        s = space.repeat(7),
+                        s = space(7),
                         dot = index(">> "),
                         zh = content(e.content.clone().unwrap().trim())
                     )?;
@@ -146,13 +151,13 @@ impl fmt::Display for VocabBody {
 
         // 例句
         if let Some(exa) = &self.examples {
-            writeln!(f, "{s}{t}", s = space.repeat(4), t = title("例句"))?;
+            writeln!(f, "{s}{t}", s = space(4), t = title("例句"))?;
             for (i, e) in exa.clone().iter().enumerate() {
                 write!(
                     f,
                     // align issue if index large than 10, but this will never happen
                     "{s}{index}{dot}",
-                    s = space.repeat(8),
+                    s = space(8),
                     index = index((i + 1).to_string().as_str()),
                     dot = dot(),
                 )?;
@@ -173,25 +178,27 @@ impl fmt::Display for VocabBody {
                     f,
                     "{p:>11}{sentence_cn}",
                     p = " ",
-                    sentence_cn = coloring(e.trans.as_str(), Role::Other)
+                    sentence_cn = e.trans.coloring(Role::Other),
                 )?;
             }
         } else if let Some(typo) = &self.typo {
             // typo
             writeln!(
                 f,
-                "{:>4}{phrase} {msg}",
-                ' ',
+                "{s}{phrase} {msg}",
+                s = space(4),
                 phrase = emphasis(&*self.phrase.clone()),
                 msg = content("may be a typo, are you looking for:"),
             )?;
+            writeln!(f)?;
+
             for w in typo {
                 if let Some(g) = &w.guessing {
                     writeln!(
                         f,
-                        "{s}{t} {word}",
-                        s = space.repeat(7),
-                        t = coloring(">", Role::Dot),
+                        "{s}{t}{word}",
+                        s = space(4),
+                        t = '>'.align_left(2).coloring(Role::Dot),
                         word = emphasis(g.as_str()),
                     )?;
                 }
@@ -200,7 +207,7 @@ impl fmt::Display for VocabBody {
                         writeln!(
                             f,
                             "{s}{part}{dot}{m}",
-                            s = space.repeat(8),
+                            s = space(6),
                             part = index(i.0),
                             dot = dot(),
                             m = content(i.1.trim()),
