@@ -5,7 +5,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use crate::handler::{youdao, Query, VocabBody};
 use crate::meta;
 use crate::result::Result;
-use crate::util;
+use crate::util::{self, ColorfulRole as Role, Style};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Engines {
@@ -141,10 +141,11 @@ impl fmt::Display for History {
         for (k, v) in self.0.iter().enumerate() {
             writeln!(
                 f,
-                "{space:>4}{index:>2}. {value}",
-                space = ' ',
-                index = util::coloring((k + 1).to_string().as_str(), util::ColorfulRole::Index),
-                value = util::coloring(v.as_str(), util::ColorfulRole::Content)
+                "{s}{index}{dot}{value}",
+                s = " ".repeat(4),
+                index = (k + 1).align_right(2).coloring(Role::Index),
+                dot = ".".align_left(2).coloring(Role::Dot),
+                value = v.coloring(Role::Content),
             )?;
         }
         Ok(())

@@ -1,5 +1,6 @@
-use colored::Colorize;
 use std::{env, path::PathBuf};
+
+use colored::Colorize;
 
 use crate::result::Result;
 
@@ -50,7 +51,28 @@ impl From<ColorfulRole> for (u8, u8, u8) {
     }
 }
 
-pub fn coloring<'a, T: Into<&'a str>>(s: T, role: ColorfulRole) -> String {
-    let rgb: (u8, u8, u8) = role.into();
-    s.into().truecolor(rgb.0, rgb.1, rgb.2).to_string()
+pub trait Style
+where
+    Self: ToString,
+{
+    fn coloring(&self, role: ColorfulRole) -> String {
+        let rgb: (u8, u8, u8) = role.into();
+        Colorize::truecolor(self.to_string().as_str(), rgb.0, rgb.1, rgb.2).to_string()
+    }
+
+    fn align_right(&self, width: usize) -> String {
+        let s = self.to_string();
+        let n = if width > s.len() { width - s.len() } else { 0 };
+        let pad = " ".repeat(n);
+        format!("{}{}", pad, s)
+    }
+
+    fn align_left(&self, width: usize) -> String {
+        let s = self.to_string();
+        let n = if width > s.len() { width - s.len() } else { 0 };
+        let pad = " ".repeat(n);
+        format!("{}{}", s, pad)
+    }
 }
+
+impl<T> Style for T where T: ToString {}
