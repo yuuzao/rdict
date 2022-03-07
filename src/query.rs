@@ -1,68 +1,52 @@
+use std::io::BufReader;
 use std::{fmt, ops::Deref, sync::mpsc, thread, time};
 
 use indicatif::{ProgressBar, ProgressStyle};
+use rodio::{source::Source, Decoder, OutputStream};
 
-use crate::handler::{youdao, Query, VocabBody};
-use crate::meta;
+use crate::handler::{youdao, AudioType, Engines, VocabBody};
 use crate::result::Result;
 use crate::util::{self, ColorfulRole as Role, Style};
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Engines {
-    Youdao,
-    Bing,
-}
-
+#[allow(dead_code)]
 pub struct QueryTarget {
     pub engine: Engines,
     pub phrase: String,
     pub vocabulary: Option<VocabBody>,
     raw: Option<Vec<u8>>,
+    audio_uk: Option<Vec<u8>>,
+    audio_us: Option<Vec<u8>>,
 }
 
 pub struct History(Vec<String>);
 
-impl From<String> for Engines {
-    fn from(eng: String) -> Self {
-        match eng.as_str() {
-            "bing" => Engines::Bing,
-            _ => Engines::Youdao,
-        }
-    }
-}
-
 impl QueryTarget {
-    pub fn new(phrase: String) -> Self {
+    pub fn new(phrase: String, engine: Engines) -> Self {
         QueryTarget {
-            engine: Engines::Youdao,
             phrase,
+            engine,
             vocabulary: None,
             raw: None,
+            audio_uk: None,
+            audio_us: None,
         }
     }
 
-    pub fn query(&mut self) -> Result<()> {
-        let target = match self.engine {
-            Engines::Bing => {
-                meta::wip();
-                std::process::exit(0)
-            }
-            _ => youdao::Youdao::new(self.phrase.as_str()),
-        };
+    pub fn query_meaning(&mut self) -> &Self {
+        // unwrap errors here
+        self.raw = self
+            .from_cache(&self.phrase)
+            .unwrap()
+            .or_else(|| self.engine.request_meaning(&self.phrase).ok());
 
-        self.raw = if let Some(cache) = self.from_cache()? {
-            Some(cache)
-        } else {
-            target.query_meaning(&self.phrase).ok()
-        };
-
-        Ok(())
+        self
     }
 
-    pub fn query_with_pb(&mut self) -> Result<()> {
+    pub fn query_with_pb(&mut self) -> &Self {
         let (tx, rx) = mpsc::channel();
 
-        if self.query().is_ok() {
+        self.query_meaning();
+        if self.raw.is_some() {
             tx.send(1).unwrap();
         }
 
@@ -92,7 +76,7 @@ impl QueryTarget {
         });
         jh.join().unwrap();
 
-        return Ok(());
+        return self;
 
         fn bar() -> ProgressBar {
             let bar = ProgressBar::new_spinner();
@@ -107,31 +91,92 @@ impl QueryTarget {
         }
     }
 
-    pub fn save(&self) -> Result<()> {
-        let db = util::open_db()?;
-        db.insert(self.phrase.as_str(), self.raw.clone().unwrap())?;
+    pub fn play_audio(&mut self, t: AudioType) -> Result<()> {
+        let data = self.query_audio(t)?;
+
+        let cs = std::io::Cursor::new(data.unwrap());
+
+        let source = Decoder::new(cs.to_owned())?;
+
+        let mut buf = BufReader::new(cs);
+        let dura = mp3_duration::from_read(&mut buf)?;
+
+        let (_stream, stream_handler) = OutputStream::try_default()?;
+        stream_handler.play_raw(source.convert_samples())?;
+
+        thread::sleep(dura);
 
         Ok(())
     }
 
-    pub fn display(&self) {
+    fn query_audio(&mut self, t: AudioType) -> Result<Option<Vec<u8>>> {
+        // TODO: not unwrap errors here
+
+        let v: &str = t.to_owned().into();
+        let key = format!("{}_{}", &self.phrase, v);
+
+        let source = self
+            .from_cache(key.as_str())
+            .unwrap()
+            .or_else(|| self.engine.request_audio(&self.phrase, t).ok());
+
+        Ok(source)
+    }
+
+    pub fn save(&self) -> Result<&Self> {
+        let db = util::open_db()?;
+        //TODO: rename audio files by appending suffix like x_us.mp3
+        db.insert(self.phrase.as_str(), self.raw.clone().unwrap())?;
+
+        Ok(self)
+    }
+
+    fn from_cache(&self, key: &str) -> Result<Option<Vec<u8>>> {
+        let raw = util::open_db()?.get(key).ok().unwrap_or(None);
+        Ok(raw.map(|ivec| ivec.deref().to_vec()))
+    }
+}
+
+impl fmt::Display for QueryTarget {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.engine {
             Engines::Bing => todo!(),
             Engines::Youdao => {
                 let v = self.raw.as_ref().unwrap();
-                let blob: youdao::YoudaoRes = serde_json::from_slice(v).unwrap();
-                let vb = VocabBody::from(blob);
-                println!("{}", vb);
+                let data: youdao::YoudaoRes = serde_json::from_slice(v).unwrap();
+                let vb = VocabBody::from(data);
+                write!(f, "{}", vb)?;
             }
         }
         if let Some(v) = &self.vocabulary {
             println!("{:?}", v);
         }
-    }
 
-    fn from_cache(&self) -> Result<Option<Vec<u8>>> {
-        let raw = util::open_db()?.get(&self.phrase).ok().unwrap_or(None);
-        Ok(raw.map(|ivec| ivec.deref().to_vec()))
+        Ok(())
+    }
+}
+
+impl History {
+    pub fn getn(length: usize) -> Self {
+        let mut res: Vec<String> = Vec::new();
+        if let Ok(db) = util::open_db() {
+            let mut ivecs: Vec<sled::IVec> = vec![];
+
+            for (i, key) in db.iter().keys().enumerate() {
+                if i == length {
+                    break;
+                }
+                if let Ok(v) = key {
+                    ivecs.push(v)
+                }
+            }
+
+            res = ivecs
+                .into_iter()
+                .filter_map(|v| String::from_utf8(v.as_ref().to_vec()).ok())
+                .collect();
+        }
+        res.into()
     }
 }
 
@@ -158,55 +203,37 @@ impl From<Vec<String>> for History {
     }
 }
 
-pub fn show_history(length: usize) -> Vec<String> {
-    let db = util::open_db();
-    if db.is_err() {
-        return Vec::new();
-    }
-
-    let db = db.unwrap();
-    let mut ivecs: Vec<sled::IVec> = vec![];
-
-    for (i, key) in db.iter().keys().enumerate() {
-        if i == length {
-            break;
-        }
-        if let Ok(v) = key {
-            ivecs.push(v)
-        }
-    }
-
-    let res: Vec<String> = ivecs
-        .into_iter()
-        .filter_map(|v| String::from_utf8(v.as_ref().to_vec()).ok())
-        .collect();
-
-    res
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
+    use serial_test::serial;
 
     #[test]
-    fn test_new_target() {
-        let target = QueryTarget::new("hello".to_string());
-        assert_eq!(target.phrase, "hello");
-        assert!(target.vocabulary.is_none());
-        assert!(target.raw.is_none());
-        assert_eq!(target.engine, Engines::Youdao);
-    }
-
-    #[test]
+    #[serial]
     fn test_get_cache() {
-        let target = QueryTarget::new("x".to_string());
-        let c = target.from_cache().unwrap();
+        let target = QueryTarget::new("x".to_string(), Engines::from("youdao".to_string()));
+        let c = target.from_cache(&target.phrase).unwrap();
         assert!(c.is_some());
     }
 
     #[test]
+    #[serial]
     fn test_history() {
-        let h = show_history(5);
-        assert_eq!(h.len(), 5);
+        let h = History::getn(0);
+        assert_eq!(h.0.len(), 0);
+    }
+
+    #[test]
+    #[serial]
+    fn test_audio() {
+        let mut target = QueryTarget::new("hello".to_string(), Engines::from("youdao".to_string()));
+
+        let audio = target.query_audio(AudioType::US).unwrap();
+        assert!(audio.is_some());
+
+        let audio = std::io::Cursor::new(audio.unwrap());
+
+        let mut deco = Decoder::new(audio).unwrap();
+        assert!(deco.any(|x| x != 0));
     }
 }

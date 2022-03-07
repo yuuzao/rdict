@@ -1,10 +1,22 @@
 pub mod youdao;
 
-use std::{fmt, io::Read};
+use std::{fmt, io, io::Read};
 
-use crate::meta::DictMsg;
+use crate::meta::{self, DictMsg};
 use crate::result::Result;
 use crate::util::{ColorfulRole as Role, Style};
+
+// http://dict.youdao.com/jsonapi?q=keyword
+const YD_PHRASE_API: &str = "http://dict.youdao.com/jsonapi";
+
+// http://dict.youdao.com/dictvoice?audio=keyword&type=1
+const YD_AUDIO_API: &str = "http://dict.youdao.com/dictvoice";
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Engines {
+    Youdao,
+    Bing,
+}
 
 #[derive(Debug)]
 pub struct VocabBody {
@@ -16,8 +28,8 @@ pub struct VocabBody {
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
-enum Variety {
+#[derive(Debug, Clone)]
+pub enum AudioType {
     US,
     UK,
 }
@@ -50,6 +62,51 @@ struct Explain {
 struct Example {
     sentence_eng: String,
     trans: String,
+}
+
+#[allow(unreachable_code)]
+impl From<String> for Engines {
+    fn from(engine: String) -> Self {
+        match engine.as_str() {
+            "bing" => {
+                // FIXME
+                meta::wip();
+                std::process::exit(0);
+                Engines::Bing
+            }
+
+            _ => Engines::Youdao,
+        }
+    }
+}
+
+impl Engines {
+    pub fn request_meaning(&self, phrase: &str) -> Result<Vec<u8>> {
+        let api: ureq::Request = match self {
+            Engines::Bing => todo!(),
+            Engines::Youdao => ureq::get(YD_PHRASE_API).query("q", phrase),
+        };
+        self.req(api)
+    }
+
+    pub fn request_audio(&self, phrase: &str, t: AudioType) -> Result<Vec<u8>> {
+        let t: &str = t.into();
+        let api = ureq::get(YD_AUDIO_API)
+            .query("audio", phrase)
+            .query("type", t);
+        self.req(api)
+    }
+
+    fn req(&self, req_body: ureq::Request) -> Result<Vec<u8>> {
+        match req_body.call() {
+            Err(e) => Err(e.into()),
+            Ok(v) => {
+                let mut res = vec![];
+                v.into_reader().read_to_end(&mut res)?;
+                Ok(res)
+            }
+        }
+    }
 }
 
 impl VocabBody {
@@ -220,7 +277,23 @@ impl fmt::Display for VocabBody {
         Ok(())
     }
 }
-pub trait Query {
-    fn query_meaning(&self, text: &str) -> Result<Vec<u8>>;
-    // fn query_pronounce(&self, text: Option<&str>) -> Result<PhoneticUri>;
+
+impl TryFrom<String> for AudioType {
+    type Error = io::Error;
+    fn try_from(s: String) -> std::result::Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "1" | "uk" => Ok(AudioType::UK),
+            "2" | "us" => Ok(AudioType::US),
+            _ => Err(io::Error::new(io::ErrorKind::InvalidInput, "unexped type")),
+        }
+    }
+}
+
+impl From<AudioType> for &str {
+    fn from(s: AudioType) -> Self {
+        match s {
+            AudioType::US => "2",
+            AudioType::UK => "1",
+        }
+    }
 }
