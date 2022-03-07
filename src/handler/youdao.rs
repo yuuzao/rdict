@@ -1,7 +1,6 @@
 use super::*;
 use serde::Deserialize;
 use std::fmt::Debug;
-use ureq;
 
 // json root
 #[derive(Deserialize, Debug, Clone)]
@@ -122,24 +121,6 @@ struct TypoContent {
     trans: Option<String>,
 }
 
-// --------------------
-
-const PHRASE_API: &str = "http://dict.youdao.com/jsonapi";
-
-#[allow(dead_code)]
-#[derive(Clone, Debug, Default)]
-pub struct Youdao {
-    phrase: String,
-}
-
-impl Youdao {
-    pub fn new(phrase: &str) -> Self {
-        Youdao {
-            phrase: phrase.to_lowercase(),
-        }
-    }
-}
-
 impl From<YoudaoRes> for VocabBody {
     fn from(ydr: YoudaoRes) -> VocabBody {
         // Responsed phrase may contain mixed cases. eg: "british" -> "British"
@@ -210,21 +191,4 @@ impl From<YoudaoRes> for VocabBody {
 
         vb
     }
-}
-
-impl Query for Youdao {
-    fn query_meaning(&self, text: &str) -> Result<Vec<u8>> {
-        match ureq::get(PHRASE_API).query("q", text).call() {
-            Err(e) => Err(e.into()),
-            Ok(v) => {
-                let mut res = vec![];
-                v.into_reader().read_to_end(&mut res)?;
-                Ok(res)
-            }
-        }
-    }
-    // fn query_pronounce(&self, text: Option<&str>) -> Result<PhoneticUri> {
-    //     println!("{:?}", text);
-    //     todo!();
-    // }
 }

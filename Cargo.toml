@@ -21,3 +21,5 @@ clap = {version = "3.1.2", features = ["derive"]}
 sled = "0.34.7"
 ureq = {version = "2.4.0", features = ["json"]}
 dirs = "4.0.0"
+rodio = {version = "0.15.0", default-features = false, features = ["symphonia-mp3"]}
+mp3-duration = "0.1.10"

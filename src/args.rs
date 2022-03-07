@@ -3,12 +3,13 @@ use std::{env, fmt};
 use clap::{ArgGroup, ColorChoice, CommandFactory, ErrorKind as CError, Parser};
 use colored::Colorize;
 
-use crate::query::{Engines, QueryTarget};
+use crate::handler::{AudioType, Engines};
+use crate::query::QueryTarget;
 use crate::result::Result;
 
 #[derive(Parser, Debug, Clone)]
 #[clap(author, version, about, long_about  = None)]
-#[clap(group(ArgGroup::new("query").args(&["phrase", "dict"]).multiple(true).requires("phrase")))]
+#[clap(group(ArgGroup::new("query").args(&["phrase", "dict","voice"]).multiple(true).requires("phrase")))]
 #[clap(group(ArgGroup::new("function").args(&["list"]).conflicts_with_all(&["query"])))]
 pub struct Args {
     /// What do you want to query?
@@ -20,9 +21,19 @@ pub struct Args {
         short,
         long,
         default_value = "youdao",
+        default_missing_value = "youdao",
         possible_values= ["youdao","bing"]
     )]
     dict: String,
+
+    /// query with voice, uk or 1 for uk, us or 2 for us
+    #[clap(
+        short,
+        long,
+        default_missing_value = "uk",
+        possible_values= ["us","uk", "1", "2"]
+    )]
+    voice: Option<String>,
 
     /// list query history
     #[clap(short, long, default_missing_value = "5")]
@@ -30,9 +41,14 @@ pub struct Args {
 }
 
 pub enum CliAction {
-    Query(String, String), //phrases and engine
+    Query(QueryContent), //phrases and engine
     ListHistory(usize),
     Other,
+}
+pub struct QueryContent {
+    pub phrase: String,
+    pub engine: Engines,
+    pub voice: Option<AudioType>,
 }
 
 pub fn parse_args() -> Result<CliAction> {
@@ -40,7 +56,15 @@ pub fn parse_args() -> Result<CliAction> {
     let args = Args::parse_from(input);
 
     if !args.phrase.is_empty() {
-        return Ok(CliAction::Query(args.phrase.join(" "), args.dict));
+        let mut c = QueryContent {
+            phrase: args.phrase.join(" "),
+            engine: Engines::from(args.dict),
+            voice: None,
+        };
+        if let Some(t) = args.voice {
+            c.voice = Some(AudioType::try_from(t)?)
+        }
+        return Ok(CliAction::Query(c));
     } else if let Some(list) = args.list {
         return Ok(CliAction::ListHistory(list));
     } else {

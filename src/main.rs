@@ -7,20 +7,21 @@ mod result;
 mod util;
 
 use args::{parse_args, CliAction};
-use query::{Engines, History, QueryTarget};
+use query::{History, QueryTarget};
 
 fn main() {
     match parse_args().unwrap() {
-        CliAction::Query(phrases, engine) => {
-            let mut target = QueryTarget::new(phrases);
-            target.engine = Engines::from(engine);
+        CliAction::Query(info) => {
+            let mut target = QueryTarget::new(info.phrase, info.engine);
+            target.query_with_pb().save().unwrap();
+            println!("{}", target);
 
-            target.query_with_pb().unwrap();
-            target.display();
-            target.save().unwrap();
+            if let Some(v) = info.voice {
+                target.play_audio(v).unwrap();
+            }
         }
         CliAction::ListHistory(s) => {
-            let history: History = query::show_history(s).into();
+            let history = History::getn(s);
             println!("{}", history);
         }
         CliAction::Other => meta::show_logo(),
