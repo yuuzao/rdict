@@ -110,8 +110,6 @@ impl QueryTarget {
     }
 
     fn query_audio(&mut self, t: AudioType) -> Result<Option<Vec<u8>>> {
-        // TODO: not unwrap errors here
-
         let v: &str = t.to_owned().into();
         let key = format!("{}_{}", &self.phrase, v);
 

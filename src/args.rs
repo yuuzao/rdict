@@ -1,10 +1,8 @@
-use std::{env, fmt};
+use std::env;
 
-use clap::{ArgGroup, ColorChoice, CommandFactory, ErrorKind as CError, Parser};
-use colored::Colorize;
+use clap::{ArgGroup, Parser};
 
 use crate::handler::{AudioType, Engines};
-use crate::query::QueryTarget;
 use crate::result::Result;
 
 #[derive(Parser, Debug, Clone)]
@@ -80,7 +78,7 @@ pub fn parse_args() -> Result<CliAction> {
             return Vec::new();
         }
 
-        let mut phrase = input.get(1).unwrap();
+        let phrase = input.get(1).unwrap();
         if !phrase.starts_with('-') {
             input.insert(1, "-p".to_string());
         }
